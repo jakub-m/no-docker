@@ -1,24 +1,27 @@
-Get a script to download raw docker image 
+I wrote this post while learning how [Docker][ref_docker] works. My learning goal was to know the magic behind Docker, and to be able to run a Docker image without Docker.
 
+tl;dr: Docker is not magic, the kernel does all the magic.
+
+[ref_docker]:https://en.wikipedia.org/wiki/Docker_(software)
+
+To reproduce the learning steps, you can clone this repo, follow the post and run the scripts:
+
+```
+git clone git@github.com:jakub-m/no-docker.git
+cd no-docker/
+```
+
+Run `00-prepare.sh` to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
 
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
+[`00-prepare.sh`][00-prepare.sh]
 
-```
-./download-frozen-image-v2.sh ./image/ busybox:latest
-```
+Download [busybox][ref_busybox] Docker image locally and unarchive it. A docker image is a tar archive with metadata and (tar-ed) directory trees, so we unarchive it.
 
-Unpack layer.tar containing the actual binaries
+10-busybox-image.sh
 
-```
-mkdir -p image-layer && find image -name layer.tar | xargs -n1 tar -C image-layer -xf
-```
-
-
-```
-20-unshare.sh
-```
 
 # namespace magic
 
@@ -71,9 +74,20 @@ dev       3017  0.0  0.0   7932   708 pts/0    S+   13:43   0:00 grep sleep
 
 See that in the host terminal you see the both `sleep` processes, and in the fork terminal you see only one `sleep` process. Also, the PIDs of the sleep 2222` process differ because of PID namespace (`unshare --pids`).
 
+
+# chroot
+
+Restricting directory tree of a process to a subdirectory is done with [`chroot`][ref_chroot]
+
+```
+sudo ls -l /proc/3013/root
+lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/image-busybox-layer
+```
+
+[ref_chroot]:https://man7.org/linux/man-pages/man1/chroot.1.html
+
+
 # cgroups
-
-
 
 
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
