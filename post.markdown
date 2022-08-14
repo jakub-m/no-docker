@@ -1,26 +1,27 @@
-I wrote this post while learning how [Docker][ref_docker] works. My learning goal was to know the magic behind Docker, and to be able to run a Docker image without Docker.
-
-tl;dr: Docker is not magic, the kernel does all the magic.
+I wrote this post trying learning how [Docker][ref_docker] works under the hood. My learning goal was to run a Docker image without Docker.
 
 [ref_docker]:https://en.wikipedia.org/wiki/Docker_(software)
 
-To reproduce the learning steps, you can clone this repo, follow the post and run the scripts:
+tl;dr: Docker is not magic, its all namespaces and cgroups!
 
-```
-git clone git@github.com:jakub-m/no-docker.git
-cd no-docker/
-```
+To reproduce the learning steps, you can clone [no-docker git repo][ref_no_docker], follow the post and run the scripts.
 
-Run `00-prepare.sh` to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+[ref_no_docker]:https://github.com/jakub-m/no-docker
+
+First run [`00-prepare.sh`][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+
+[ref_00_prepare_sh]:./00-prepare.sh
 
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
-00-prepare.sh
+A Docker image is just a nested tar archive. Let's download and unarchive [busybox image][ref_busybox].
 
-Download [busybox][ref_busybox] Docker image locally and unarchive it. A docker image is a tar archive with metadata and (tar-ed) directory trees, so we unarchive it.
+[ref_busybox]:https://hub.docker.com/_/busybox
 
-10-busybox-image.sh
+[10-busybox-image.sh][ref_10_busybox_image_sh]
+
+[ref_10_busybox_image_sh]:./10-busybox-image.sh
 
 Docker is based on Linux namespaces and cgroups (and other technologies). Below I poke them one by one.
 
@@ -85,23 +86,53 @@ lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/ima
 
 
 ```
- sudo cat  /proc/$(pidof sleep)/cgroup
-0::/user.slice/user-1000.slice/session-8.scope
+cat /proc/$(pidof sh)/cgroup
+0::/user.slice/user-1000.slice/session-4.scope
+```
+
+
+[ref_cgroup]:https://docs.kernel.org/admin-guide/cgroup-v2.html
+
+
+
+Let's find the file controlling max memory of the forked shell:
+
+```
+mount | grep cgroup
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+```
+
+```
+find /sys/fs/cgroup/ | grep $( cat /proc/$(pidof sh)/cgroup | cut -d/ -f 2-) | grep memory.max
+/sys/fs/cgroup/user.slice/user-1000.slice/session-4.scope/memory.max
 ```
 
 
 ```
-sudo cat memory.max
-max
-dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo e^C
-dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo sh ''^C
-dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ echo 1G > memory.max
--bash: memory.max: Permission denied
-dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo sh -c 'echo 1G > memory.max'
-dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ cat memory.max
-1073741824
+sudo sh -c 'echo 200m > /sys/fs/cgroup/user.slice/user-1000.slice/session-4.scope/memory.max'
 ```
 
+
+
+```
+cat /sys/fs/cgroup/user.slice/user-1000.slice/session-4.scope/memory.events
+
+low 0
+high 0
+max 3534 << this changes when you run over the max limit
+oom 0
+oom_kill 0
+ ```
+
+```
+sudo swapoff -a
+```
+
+```
+./main -mb 200
+2022/08/14 21:45:40 allocate 200MB of memory
+Killed
+```
 
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 
@@ -109,3 +140,5 @@ dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ cat memory
 # limitting resources in action
 
 # overlayfs 
+
+
