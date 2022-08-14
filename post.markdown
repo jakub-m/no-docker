@@ -15,13 +15,10 @@ Unpack layer.tar containing the actual binaries
 mkdir -p image-layer && find image -name layer.tar | xargs -n1 tar -C image-layer -xf
 ```
 
+
 ```
-# Go to the directory that will become a new root.
-cd layer
-# Create directory that will be used to mount /proc/
-mkdir proc
-# Run the shell from the new namespace!
-sudo unshare --mount-proc --fork --pid --root=$PWD  bin/sh
+20-unshare.sh
+
 ```
 
 # Overlaying different filesystems
