@@ -6,13 +6,13 @@ Get a script to download raw docker image
 
 
 ```
-./download-frozen-image-v2.sh busybox-latest-image  busybox:latest
+./download-frozen-image-v2.sh ./image/ busybox:latest
 ```
 
 Unpack layer.tar containing the actual binaries
+
 ```
-mkdir layer
-find . -name layer.tar | xargs -n1 tar -C layer -xf
+mkdir -p image-layer && find image -name layer.tar | xargs -n1 tar -C image-layer -xf
 ```
 
 ```
