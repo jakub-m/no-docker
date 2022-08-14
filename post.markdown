@@ -16,12 +16,13 @@ Run `00-prepare.sh` to install all the dependencies.  The [`download-frozen-imag
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
-[`00-prepare.sh`][00-prepare.sh]
+00-prepare.sh
 
 Download [busybox][ref_busybox] Docker image locally and unarchive it. A docker image is a tar archive with metadata and (tar-ed) directory trees, so we unarchive it.
 
 10-busybox-image.sh
 
+Docker is based on Linux namespaces and cgroups (and other technologies). Below I poke them one by one.
 
 # namespace magic
 
@@ -29,14 +30,7 @@ Download [busybox][ref_busybox] Docker image locally and unarchive it. A docker 
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
 
-
-Lets explore some of those.
-
-## pid namespace
-
-From [Wiki][ref_pid_namespace]:
-
-_The PID namespace provides processes with an independent set of process IDs (PIDs) from other namespaces. PID namespaces are nested, meaning when a new process is created it will have a PID for each namespace from its current namespace up to the initial PID namespace. Hence the initial PID namespace is able to see all processes, albeit with different PIDs than other namespaces will see processes with._
+_The **PID namespace** provides processes with an independent set of process IDs (PIDs) from other namespaces. PID namespaces are nested, meaning when a new process is created it will have a PID for each namespace from its current namespace up to the initial PID namespace. Hence the initial PID namespace is able to see all processes, albeit with different PIDs than other namespaces will see processes with._
 
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
@@ -92,3 +86,7 @@ lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/ima
 
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 
+
+# limitting resources in action
+
+# overlayfs 
