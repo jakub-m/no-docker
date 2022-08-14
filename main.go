@@ -14,5 +14,8 @@ func main() {
 		size := memoryMb * 1024 * 1024
 		block := make([]uint8, size, size)
 		log.Printf("allocated %d bytes", cap(block))
+		for i := 0; i < cap(block); i++ {
+			block[i] = 1
+		}
 	}
 }

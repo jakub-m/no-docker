@@ -84,6 +84,25 @@ lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/ima
 # cgroups
 
 
+```
+ sudo cat  /proc/$(pidof sleep)/cgroup
+0::/user.slice/user-1000.slice/session-8.scope
+```
+
+
+```
+sudo cat memory.max
+max
+dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo e^C
+dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo sh ''^C
+dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ echo 1G > memory.max
+-bash: memory.max: Permission denied
+dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ sudo sh -c 'echo 1G > memory.max'
+dev@debian:/sys/fs/cgroup/user.slice/user-1000.slice/session-8.scope$ cat memory.max
+1073741824
+```
+
+
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 
 
