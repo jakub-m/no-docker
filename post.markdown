@@ -4,11 +4,11 @@ I wrote this post trying learning how [Docker][ref_docker] works under the hood.
 
 tl;dr: Docker is not magic, its all namespaces and cgroups!
 
-To reproduce the learning steps, you can clone [no-docker git repo][ref_no_docker], follow the post and run the scripts.
+To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.
 
 [ref_no_docker]:https://github.com/jakub-m/no-docker
 
-First run [`00-prepare.sh`][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+I used Debian run from VirtualBox. First run [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
 
 [ref_00_prepare_sh]:./00-prepare.sh
 
@@ -23,19 +23,23 @@ A Docker image is just a nested tar archive. Let's download and unarchive [busyb
 
 [ref_10_busybox_image_sh]:./10-busybox-image.sh
 
-Docker is based on Linux namespaces and cgroups (and other technologies). Below I poke them one by one.
+ Docker uses Linux cgroups and namespaces. Below I try them by hand.
 
 # namespace magic
 
-[unshare][ref_unshare] allows to specify different namespaces.  [Linux namespaces][ref_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differntly that other resources. The recources can be process ids, filesystem mount points, network stack, and other.
+ [Linux namespaces][ref_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differntly that other resources. The recources can be process ids, filesystem mount points, network stack, and other.
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
+
+[unshare][ref_unshare] system call and a command allows to set separate namespace for a process.
+
+[ref_unshare]:https://man7.org/linux/man-pages/man1/unshare.1.html
+
+Let's see how isolating and nesting PIDs looks in practice with PID namespace:
 
 _The **PID namespace** provides processes with an independent set of process IDs (PIDs) from other namespaces. PID namespaces are nested, meaning when a new process is created it will have a PID for each namespace from its current namespace up to the initial PID namespace. Hence the initial PID namespace is able to see all processes, albeit with different PIDs than other namespaces will see processes with._
 
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
-
-Let's see how isolating and nesting PIDs looks in practice.
 
 We will have a parent process (a regular bash shell), and a forked shell with a separate PID namespace. From the parent shell and the forked shell we will spawn processes and see who the pids behave.
 
