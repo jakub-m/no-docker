@@ -1,8 +1,8 @@
-default: main copy
-main: main.go
-	go build -o main main.go
-copy: main
-	cp -f main image-busybox-layer/main
+default: tool copy
+tool: tool.go
+	go build -o tool tool.go
+copy: tool
+	cp -f tool image-busybox-layer/tool
 clean:
-	rm -fv main
+	rm -fv tool
 .phony: clean

@@ -7,8 +7,7 @@ tl;dr: Docker is not magic, its all namespaces and cgroups!
 To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.
 
 [ref_no_docker]:https://github.com/jakub-m/no-docker
-
-I used Debian run from VirtualBox. First run [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+I used Debian run from VirtualBox. Start with runing [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
 
 [ref_00_prepare_sh]:./00-prepare.sh
 
@@ -85,8 +84,16 @@ lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/ima
 
 [ref_chroot]:https://man7.org/linux/man-pages/man1/chroot.1.html
 
+# overlayfs 
 
-# cgroups
+[Overlay Filesystem][ref_overlay_fs] allows logically merging different mount points differrn 
+
+[ref_overlay_fs]:https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
+
+[ref_workdir]:https://unix.stackexchange.com/questions/324515/linux-filesystem-overlay-what-is-workdir-used-for-overlayfs
+
+
+# cgroups. Limitting resources in action.
 
 
 ```
@@ -133,16 +140,11 @@ sudo swapoff -a
 ```
 
 ```
-./main -mb 200
+./tool -mb 200
 2022/08/14 21:45:40 allocate 200MB of memory
 Killed
 ```
 
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
-
-
-# limitting resources in action
-
-# overlayfs 
 
 
