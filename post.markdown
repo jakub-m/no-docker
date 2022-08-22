@@ -19,11 +19,11 @@ A Docker image is just a nested tar archive. Let's download and un-archive [busy
 
 [ref_busybox]:https://hub.docker.com/_/busybox
 
-[10-busybox-image.sh][./10-busybox-image.sh]
+[10-busybox-image.sh](./10-busybox-image.sh)
 
 Also, build a simple tool that we will use later:
 
-[11-build-tool.sh][./11-build-tool.sh]
+[11-build-tool.sh](./11-build-tool.sh)
 
 # namespace magic
 
