@@ -4,11 +4,9 @@ I wrote this post trying learning how [Docker][ref_docker] works under the hood.
 
 tl;dr: Surprisingly, Docker is not magic. Docker uses Linux cgroups, namespaces, overlayfs and other Linux mechanisms. Below I try them by hand.
 
-To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.
+To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.  I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
 
 [ref_no_docker]:https://github.com/jakub-m/no-docker
-I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
-
 [ref_00_prepare_sh]:./00-prepare.sh
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
@@ -35,7 +33,7 @@ Also, build a simple tool that we will use later:
 
 [unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh][./20-unshare.sh] to fork a shell from busybox with a separate PID namespace, with separate file system root.
 
-Restricting directory tree of a process to a subdirectory is done with [**chroot**][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
+Restricting directory tree of a process to a subdirectory is done with [chroot][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
 
 ```
 sudo ls -l /proc/3013/root
