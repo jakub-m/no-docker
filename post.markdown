@@ -2,45 +2,52 @@ I wrote this post trying learning how [Docker][ref_docker] works under the hood.
 
 [ref_docker]:https://en.wikipedia.org/wiki/Docker_(software)
 
-tl;dr: Docker is not magic, its all namespaces and cgroups!
+tl;dr: Surprisingly, Docker is not magic. Docker uses Linux cgroups, namespaces, overlayfs and other Linux mechanisms. Below I try them by hand.
 
 To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.
 
 [ref_no_docker]:https://github.com/jakub-m/no-docker
-I used Debian run from VirtualBox. Start with runing [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
 
 [ref_00_prepare_sh]:./00-prepare.sh
-
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
-A Docker image is just a nested tar archive. Let's download and unarchive [busybox image][ref_busybox].
+<!-- docker image, download and untar -->
+
+A Docker image is just a nested tar archive. Let's download and un-archive [busybox image][ref_busybox].
 
 [ref_busybox]:https://hub.docker.com/_/busybox
 
-[10-busybox-image.sh][ref_10_busybox_image_sh]
+[10-busybox-image.sh](./10-busybox-image.sh)
 
-[ref_10_busybox_image_sh]:./10-busybox-image.sh
+Also, build a simple tool that we will use later:
 
- Docker uses Linux cgroups and namespaces. Below I try them by hand.
+[11-build-tool.sh](./11-build-tool.sh)
 
 # namespace magic
 
- [Linux namespaces][ref_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differntly that other resources. The recources can be process ids, filesystem mount points, network stack, and other.
+[Linux namespaces][ref_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
 
-[unshare][ref_unshare] system call and a command allows to set separate namespace for a process.
-
-[ref_unshare]:https://man7.org/linux/man-pages/man1/unshare.1.html
-
-Let's see how isolating and nesting PIDs looks in practice with PID namespace:
-
-_The **PID namespace** provides processes with an independent set of process IDs (PIDs) from other namespaces. PID namespaces are nested, meaning when a new process is created it will have a PID for each namespace from its current namespace up to the initial PID namespace. Hence the initial PID namespace is able to see all processes, albeit with different PIDs than other namespaces will see processes with._
-
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
-We will have a parent process (a regular bash shell), and a forked shell with a separate PID namespace. From the parent shell and the forked shell we will spawn processes and see who the pids behave.
+[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh][./20-unshare.sh] to fork a shell from busybox with a separate PID namespace, with separate file system root.
+
+Restricting directory tree of a process to a subdirectory is done with [**chroot**][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
+
+```
+sudo ls -l /proc/3013/root
+lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/image-busybox-layer
+```
+
+[ref_chroot]:https://man7.org/linux/man-pages/man1/chroot.1.html
+[ref_unshare]:https://man7.org/linux/man-pages/man1/unshare.1.html
+
+
+
+To check how PID namespaces work, we will have a parent process (a regular bash shell), and a forked shell with a separate PID namespace. From the parent shell and the forked shell we will spawn processes and see who the pids behave.
 
 Open two terminals. We'll call them "host terminal" and "fork terminal".
 
@@ -48,14 +55,16 @@ Run the following:
 
 ```
 # in host terminal
-sleep 1111 &
+./tool -hang foo &
 ```
+
+<!-- HERE UPDATE COMMANDS ND PIDS -->
 
 ```
 # in fork terminal
 ./20-unshare.sh
 # run the commands below from witin the forked process
-sleep 2222 &
+./tool -hang bar &
 ps auxww | grep sleep
 / # ps auxww | grep sleep
     2 root      0:00 sleep 2222
@@ -72,17 +81,6 @@ dev       3017  0.0  0.0   7932   708 pts/0    S+   13:43   0:00 grep sleep
 
 See that in the host terminal you see the both `sleep` processes, and in the fork terminal you see only one `sleep` process. Also, the PIDs of the sleep 2222` process differ because of PID namespace (`unshare --pids`).
 
-
-# chroot
-
-Restricting directory tree of a process to a subdirectory is done with [`chroot`][ref_chroot]
-
-```
-sudo ls -l /proc/3013/root
-lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/image-busybox-layer
-```
-
-[ref_chroot]:https://man7.org/linux/man-pages/man1/chroot.1.html
 
 # overlayfs 
 
