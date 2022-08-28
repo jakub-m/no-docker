@@ -2,26 +2,51 @@ I wrote this post trying learning how [Docker][ref_docker] works under the hood.
 
 [ref_docker]:https://en.wikipedia.org/wiki/Docker_(software)
 
-tl;dr: Surprisingly, Docker is not magic. Docker uses Linux cgroups, namespaces, overlayfs and other Linux mechanisms. Below I try them by hand.
+tl;dr: Surprisingly, Docker is not magic. Docker uses Linux cgroups, namespaces, overlayfs and other Linux mechanisms. Below I try to use those mechanisms by hand.
 
-To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.  I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies.  The [`download-frozen-image-v2.sh`] script to download docker images was taken from [here][ref_script_pull] ([SO][ref_so_pull]).
+To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.  I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies and build a small [`tool.go`] that we will use for experimenting.
 
 [ref_no_docker]:https://github.com/jakub-m/no-docker
 [ref_00_prepare_sh]:./00-prepare.sh
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
-<!-- docker image, download and untar -->
+# Docker image
 
-A Docker image is just a nested tar archive. Let's download and un-archive [busybox image][ref_busybox].
+Let's download and un-archive [busybox image][ref_busybox] by running [10-busybox-image.sh](./10-busybox-image.sh).  You can see that a Docker image is just a nested tar archive:
 
 [ref_busybox]:https://hub.docker.com/_/busybox
 
-[10-busybox-image.sh](./10-busybox-image.sh)
+```
+$ tree image-busybox
+image-busybox
+|-- a01835d83d8f65e3722493f08f053490451c39bf69ab477b50777b059579198f.json
+|-- b906f5815465b0f9bf3760245ce063df516c5e8c99cdd9fdc4ee981a06842872
+|   |-- json
+|   |-- layer.tar
+|   `-- VERSION
+|-- manifest.json
+`-- repositories
+```
 
-Also, build a simple tool that we will use later:
+`layer.tar` is a file tree with busybox tooling:
 
-[11-build-tool.sh](./11-build-tool.sh)
+```
+image-busybox-layer/
+|-- bin
+(...)
+|   |-- less
+|   |-- link
+|   |-- linux32
+|   |-- linux64
+|   |-- linuxrc
+|   |-- ln
+(...)
+|-- etc
+|   |-- group
+(...)
+```
+
 
 # namespace magic
 
@@ -31,17 +56,31 @@ Also, build a simple tool that we will use later:
 
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
-[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh][./20-unshare.sh] to fork a shell from busybox with a separate PID namespace, with separate file system root.
+[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh](./20-unshare.sh) to fork a shell from busybox with a separate PID namespace, with separate file system root. 
+
+Have a look around. You will see that the root directory of the forked process is restricted ("jailed") to the directory we specified when forking the shell. Now run the "tool" and see how the same process looks from the "inside" and "outside" of the forked shell:
+
+```
+# Run from the forked shell.  It does nothing but sleep.
+
+./tool -hang hello
+```
 
 Restricting directory tree of a process to a subdirectory is done with [chroot][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
 
 ```
-sudo ls -l /proc/3013/root
-lrwxrwxrwx 1 root root 0 Aug 14 15:54 /proc/3013/root -> /home/dev/no-docker/image-busybox-layer
+# Run this from the parent (outside) shell
+
+dev@debian:~/no-docker$ find  /proc/$(pidof tool) -name root -type l 2>/dev/null | sudo xargs -n1 ls -l
+lrwxrwxrwx 1 root root 0 Aug 27 22:03 /proc/1985/task/1985/root -> /home/dev/no-docker/image-busybox-layer
+(...)
 ```
 
 [ref_chroot]:https://man7.org/linux/man-pages/man1/chroot.1.html
 [ref_unshare]:https://man7.org/linux/man-pages/man1/unshare.1.html
+
+
+<!-- HERE UPDATE COMMANDS ND PIDS -->
 
 
 
@@ -56,7 +95,9 @@ Run the following:
 ./tool -hang foo &
 ```
 
-<!-- HERE UPDATE COMMANDS ND PIDS -->
+Also, build a simple tool that we will use later:
+
+[11-build-tool.sh](./11-build-tool.sh)
 
 ```
 # in fork terminal
