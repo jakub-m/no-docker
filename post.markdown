@@ -6,17 +6,38 @@ tl;dr: Surprisingly, Docker is not magic. Docker uses Linux cgroups, namespaces,
 
 To reproduce the learning steps, clone [no-docker git repo][ref_no_docker] and follow the post and run the scripts.  I used Debian run from VirtualBox. Start with running [00-prepare.sh][ref_00_prepare_sh] to install all the dependencies and build a small [`tool` in Go][ref_tool_go] that we will use for experimenting.
 
+[00-prepare.sh][ref_00_prepare_sh]
+```
+#!/bin/bash
+set -eux
+sudo apt-get install -y git golang jq curl psmisc
+curl -O https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
+chmod a+x download-frozen-image-v2.sh
+go build -o tool tool.go
+```
+
 [ref_no_docker]:https://github.com/jakub-m/no-docker
-[ref_00_prepare_sh]:./00-prepare.sh
 [ref_so_pull]:https://stackoverflow.com/a/47624649
 [ref_script_pull]:https://raw.githubusercontent.com/moby/moby/master/contrib/download-frozen-image-v2.sh
 
 # Docker image
 
-Let's download and un-archive [busybox image][ref_busybox] by running [10-busybox-image.sh](./10-busybox-image.sh).  You can see that a Docker image is just a nested tar archive:
+Let's download and un-archive [busybox image][ref_busybox] by running [10-busybox-image.sh][ref_10_busybox_image].  You can see that a Docker image is just a nested tar archive:
+
+
+[10-busybox-image.sh][ref_10_busybox_image]
+```
+#!/bin/bash
+
+set -eux
+set -o pipefail
+
+./download-frozen-image-v2.sh ./image-busybox/ busybox:latest
+mkdir -p image-busybox-layer
+find image-busybox -name layer.tar | xargs -n1 tar -C image-busybox-layer -xf
+```
 
 [ref_busybox]:https://hub.docker.com/_/busybox
-[ref_tool_go]:TOOD
 
 
 ```
@@ -58,7 +79,24 @@ image-busybox-layer/
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
-[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh](./20-unshare.sh) to fork a shell from busybox with a separate PID namespace, with separate file system root. 
+[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh][ref_20_unshare] to fork a shell from busybox with a separate PID namespace, with separate file system root. 
+
+[20-unshare.sh][ref_20_unshare]
+```
+#!/bin/bash
+
+set -eux
+
+cd image-busybox-layer
+mkdir -p proc
+
+sudo unshare --mount-proc \
+    --fork \
+    --pid \
+    --cgroup \
+    --root=$PWD \
+    bin/sh
+```
 
 Have a look around. You will see that the root directory of the forked process is restricted ("jailed") to the directory we specified when forking the shell. Now run the `tool` and see how the same process looks from the "inside" and "outside" of the forked shell. First copy the tool to XXX, then run the tool from the forked shell:
 
@@ -191,7 +229,20 @@ The last thing I looked at is the overlay file system, the volumes in Docker.  [
 
 [ref_overlay_fs]:https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
 
-[40-overlayfs.sh](./40-overlayfs.sh)
+[40-overlayfs.sh][ref_40_overlayfs]
+```
+#!/bin/bash
+
+set -eux  
+
+sudo mkdir -p /upper /lower /work /merged
+sudo chmod 777 /upper /lower /work /merged
+echo 'upper foo' > /upper/foo
+echo 'upper bar' > /upper/bar
+echo 'lower bar' > /lower/bar
+echo 'lower quux' > /lower/quux
+sudo mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,workdir=/work /merged 
+```
 
 
 See how the /merged directory holds content of both upper and lower directory, where "upper wins" if there are files with similar names:
@@ -215,4 +266,10 @@ Worth noting, the workdir is a "technical" directory used by overlayfs to prepar
 # Conclusion
 
 Docker itself is not magic, the mechanisms of the kernel is the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is networking namespace.  
+
+[ref_00_prepare_sh]:https://github.com/jakub-m/no-docker/blob/playground/00-prepare.sh
+[ref_10_busybox_image]:https://github.com/jakub-m/no-docker/blob/playground/10-busybox-image.sh
+[ref_tool_go]:https://github.com/jakub-m/no-docker/blob/playground/tool.go
+[ref_20_unshare]:https://github.com/jakub-m/no-docker/blob/playground/20-unshare.sh
+[ref_40_overlayfs]:https://github.com/jakub-m/no-docker/blob/playground/40-overlayfs.sh
 
