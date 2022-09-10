@@ -52,7 +52,7 @@ image-busybox-layer/
 
 # namespace magic
 
-[Linux namespaces][ref_linux_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
+[Linux namespaces][ref_linux_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  You can see all the current namespaces with `lsns`. Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
@@ -185,18 +185,34 @@ sudo swapoff -a
 Killed
 ```
 
-<!-- HERE -->
-
-
 # overlayfs 
 
-[Overlay Filesystem][ref_overlay_fs] allows logically merging different mount points differrn 
+The last thing I looked at is the overlay file system, the volumes in Docker.  [Overlay file system][ref_overlay_fs] allows logically merging different mount points. You can overlay part of a parent file system with the forked file system.  You can check the overlayfs with the following:
 
 [ref_overlay_fs]:https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
+
+[40-overlayfs.sh](./40-overlayfs.sh)
+
+
+See how the /merged directory holds content of both upper and lower directory, where "upper wins" if there are files with similar names:
+
+```
+dev@debian:~/no-docker$ tail -n+1 /merged/*
+==> /merged/bar <==
+upper bar
+
+==> /merged/foo <==
+upper foo
+
+==> /merged/quux <==
+lower quux
+```
+
+Worth noting, the workdir is a "technical" directory used by overlayfs to prepare files to move them in a single atomic operation.
 
 [ref_workdir]:https://unix.stackexchange.com/questions/324515/linux-filesystem-overlay-what-is-workdir-used-for-overlayfs
 
 # Conclusion
-no magic
-mechanisms that yuo can explore yourself 
-Missing networking.
+
+Docker itself is not magic, the mechanisms of the kernel is the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is networking namespace.  
+
