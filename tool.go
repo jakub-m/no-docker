@@ -19,8 +19,8 @@ func main() {
 		for {
 			allocate(memoryMb)
 			readMemStats()
-			log.Printf("run garbage collector")
 			time.Sleep(1 * time.Second)
+			// log.Printf("run garbage collector")
 			runtime.GC()
 			readMemStats()
 			time.Sleep(1 * time.Second)
@@ -35,7 +35,7 @@ func main() {
 }
 
 func allocate(memoryMb int) {
-	log.Printf("allocate %dMB of memory", memoryMb)
+	//log.Printf("allocate %dMB of memory", memoryMb)
 	size := memoryMb * 1024 * 1024
 	block := make([]uint8, size, size)
 	// do something with memory to ensure that this code is not optimized-out.
@@ -44,7 +44,7 @@ func allocate(memoryMb int) {
 		block[i] = 1
 		n++
 	}
-	log.Printf("allocated %d bytes", n)
+	//log.Printf("allocated %d bytes", n)
 }
 
 func readMemStats() {

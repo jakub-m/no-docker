@@ -52,10 +52,10 @@ image-busybox-layer/
 
 # namespace magic
 
-[Linux namespaces][ref_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
+[Linux namespaces][ref_linux_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  You can see all the current namespaces with `lsns`. Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
-
+[ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
 [unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh](./20-unshare.sh) to fork a shell from busybox with a separate PID namespace, with separate file system root. 
@@ -108,10 +108,19 @@ dev@debian:~$ cat /proc/$(pidof tool)/cgroup
 
 Let's now use cgroups to see how we can cap memory of the forked shell.
 
-First, find the file controlling the maximum memory of the "tool" process:
+First, run the tool with -mb option to make it allocate n MBs of memory:
+
 
 ```
-find /sys/fs/cgroup/ | grep $( cat /proc/$(pidof sh)/cgroup | cut -d/ -f 2-) | grep memory.max
+# kill the previous tool if it still runs
+killall -9 tool
+./tool -mb 200
+```
+
+Find the file controlling the maximum memory of the tool process:
+
+```
+find /sys/fs/cgroup/ | grep $( cat /proc/$(pidof tool)/cgroup | cut -d/ -f 2-) | grep memory.max
 /sys/fs/cgroup/user.slice/user-1000.slice/session-92.scope/memory.max
 ```
 
@@ -122,53 +131,88 @@ mount | grep cgroup
 cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
 ```
 
-["memory.max"][ref_memory_max] is a memory usage hard limit in memory controller, that causes OOM when memory usage cannot be reduced (more about it in a while).
+["memory.max"][ref_memory_controller] is a memory hard limit in memory controller. Passing the hard limit causes OOM when memory usage cannot be reduced (more about it in a while).
 
+[ref_memory_controller]:https://facebookmicrosites.github.io/cgroup2/docs/memory-controller.html
 
-[ref_memory_max]:https://facebookmicrosites.github.io/cgroup2/docs/memory-controller.html
-
-<!-- HERE -->
-
-Let's put 200MB limit:
+Let's put 100MB limit:
 
 ```
-sudo sh -c 'echo 200m > /sys/fs/cgroup/user.slice/user-1000.slice/session-4.scope/memory.max'
+sudo sh -c 'echo 100m > /sys/fs/cgroup/user.slice/user-1000.slice/session-92.scope/memory.max'
 ```
 
-
+You will notice that the tool process... was not killed. How come? if you inspect [memory.events][ref_memory_controller] file, you will see that "max" entry increments.
 
 ```
-cat /sys/fs/cgroup/user.slice/user-1000.slice/session-4.scope/memory.events
+cat /sys/fs/cgroup/user.slice/user-1000.slice/session-92.scope/memory.events
 
 low 0
 high 0
 max 3534 << this changes when you run over the max limit
 oom 0
 oom_kill 0
- ```
+```
 
+The process was not killed because OS swapped the excessive memory. Check `cat /proc/swaps`, print it several times to see how it changes:
+
+```
+dev@debian:~/no-docker$ while [ 1 ]; do cat /proc/swaps; sleep 2; done
+Filename				Type		Size		Used		Priority
+/dev/sda5                               partition	998396		2372		-2
+Filename				Type		Size		Used		Priority
+/dev/sda5                               partition	998396		2372		-2
+
+# here I run the tool, you can see how the memory is swapped
+
+Filename				Type		Size		Used		Priority
+/dev/sda5                               partition	998396		103860		-2
+Filename				Type		Size		Used		Priority
+/dev/sda5                               partition	998396		121540		-2
+Filename				Type		Size		Used		Priority
+/dev/sda5                               partition	998396		116604		-2
+```
+
+If now you turn the swapping off with [swapoff][ref_swapoff], the took will be OOM-killed.
 ```
 sudo swapoff -a
 ```
 
+[ref_swapoff]:https://linux.die.net/man/8/swapoff
+
 ```
-./tool -mb 200
-2022/08/14 21:45:40 allocate 200MB of memory
+2022/09/10 06:32:38 heap 0 mb, sys 218 mb
+2022/09/10 06:32:39 allocate 200MB of memory
 Killed
 ```
 
-[ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
-
-
 # overlayfs 
 
-[Overlay Filesystem][ref_overlay_fs] allows logically merging different mount points differrn 
+The last thing I looked at is the overlay file system, the volumes in Docker.  [Overlay file system][ref_overlay_fs] allows logically merging different mount points. You can overlay part of a parent file system with the forked file system.  You can check the overlayfs with the following:
 
 [ref_overlay_fs]:https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
+
+[40-overlayfs.sh](./40-overlayfs.sh)
+
+
+See how the /merged directory holds content of both upper and lower directory, where "upper wins" if there are files with similar names:
+
+```
+dev@debian:~/no-docker$ tail -n+1 /merged/*
+==> /merged/bar <==
+upper bar
+
+==> /merged/foo <==
+upper foo
+
+==> /merged/quux <==
+lower quux
+```
+
+Worth noting, the workdir is a "technical" directory used by overlayfs to prepare files to move them in a single atomic operation.
 
 [ref_workdir]:https://unix.stackexchange.com/questions/324515/linux-filesystem-overlay-what-is-workdir-used-for-overlayfs
 
 # Conclusion
-no magic
-mechanisms that yuo can explore yourself 
-Missing networking.
+
+Docker itself is not magic, the mechanisms of the kernel is the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is networking namespace.  
+
