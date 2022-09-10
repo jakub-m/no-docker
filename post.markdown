@@ -1,4 +1,4 @@
-I wrote this post trying learning how [Docker][ref_docker] works under the hood. My learning goal was to run a Docker image without Docker.
+I wrote this post trying to learn how [Docker][ref_docker] works under the hood. My learning goal was to run a Docker image without Docker.
 
 [ref_docker]:https://en.wikipedia.org/wiki/Docker_(software)
 
@@ -73,13 +73,13 @@ image-busybox-layer/
 
 # namespace magic
 
-[Linux namespaces][ref_linux_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently that other resources. The resources can be PIDs, file system mount points, network stack, and other.  You can see all the current namespaces with `lsns`. Let's see how isolating and nesting PIDs looks in practice with PID [namespace][ref_pid_namespace].
+[Linux namespaces][ref_linux_namespaces] create a separate "view" on Linux resources, such that one process can see the resources differently than other resources. The resources can be PIDs, file system mount points, network stack, and others.  You can see all the current namespaces with `lsns`. Let's see how isolating and nesting PIDs look in practice with PID [namespace][ref_pid_namespace].
 
 [ref_namespaces]:https://en.wikipedia.org/wiki/Linux_namespaces
 [ref_linux_namespaces]:https://man7.org/linux/man-pages/man7/namespaces.7.html
 [ref_pid_namespace]:https://en.wikipedia.org/wiki/Linux_namespaces#Process_ID_(pid)
 
-[unshare][ref_unshare] system call and a command allows to set separate namespace for a process. Run [20-unshare.sh][ref_20_unshare] to fork a shell from busybox with a separate PID namespace, with separate file system root. 
+[unshare][ref_unshare] system call and a command allows to set the separate namespace for a process. Run [20-unshare.sh][ref_20_unshare] to fork a shell from busybox with a separate PID namespace, with a separate file system root. 
 
 [20-unshare.sh][ref_20_unshare]
 ```
@@ -106,7 +106,7 @@ Have a look around. You will see that the root directory of the forked process i
 ./tool -hang hello &
 ```
 
-Restricting directory tree of a process to a subdirectory is done with [chroot][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
+Restricting a directory tree of a process to a subdirectory is done with [chroot][ref_chroot]. You can check the actual root directory by checking /proc/\*/root of processes:
 
 ```
 # Run this from the parent (outside) shell
@@ -135,7 +135,7 @@ root       464  0.0  0.2 795136  2724 pts/1    Sl   10:16   0:00 ./tool -hang he
 
 # cgroups, limiting resources
 
-While namespaces isolate resources, [cgroups (control groups)][ref_cgroup] put limits on those resources. You can find the control group of our hanged tool with the following, run from the parent shell:
+While namespaces isolate resources, [cgroups (control groups)][ref_cgroup] put limits on those resources. You can find the control group of our hanging tool with the following, run from the parent shell:
 
 ```
 dev@debian:~$ cat /proc/$(pidof tool)/cgroup
@@ -169,7 +169,7 @@ mount | grep cgroup
 cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
 ```
 
-["memory.max"][ref_memory_controller] is a memory hard limit in memory controller. Passing the hard limit causes OOM when memory usage cannot be reduced (more about it in a while).
+["memory.max"][ref_memory_controller] is a memory hard limit in the memory controller. Passing the hard limit causes OOM when memory usage cannot be reduced (more about it in a while).
 
 [ref_memory_controller]:https://facebookmicrosites.github.io/cgroup2/docs/memory-controller.html
 
@@ -210,7 +210,7 @@ Filename				Type		Size		Used		Priority
 /dev/sda5                               partition	998396		116604		-2
 ```
 
-If now you turn the swapping off with [swapoff][ref_swapoff], the took will be OOM-killed.
+If you turn the swapping off with [swapoff][ref_swapoff], the tool will be OOM-killed.
 ```
 sudo swapoff -a
 ```
@@ -225,7 +225,7 @@ Killed
 
 # overlayfs 
 
-The last thing I looked at is the overlay file system, the volumes in Docker.  [Overlay file system][ref_overlay_fs] allows logically merging different mount points. You can overlay part of a parent file system with the forked file system.  You can check the overlayfs with the following:
+The last thing I looked at is the overlay file system, underlying volumes in Docker.  The [overlay file system][ref_overlay_fs] allows logically merging of different mount points. You can overlay part of a parent file system with the forked file system.  You can check the overlayfs with the following:
 
 [ref_overlay_fs]:https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
 
@@ -245,7 +245,7 @@ sudo mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,workdir=/work /m
 ```
 
 
-See how the /merged directory holds content of both upper and lower directory, where "upper wins" if there are files with similar names:
+See how the /merged directory holds the content of both upper and lower directory, where "upper wins" if there are files with similar names:
 
 ```
 dev@debian:~/no-docker$ tail -n+1 /merged/*
@@ -259,13 +259,13 @@ upper foo
 lower quux
 ```
 
-Worth noting, the workdir is a "technical" directory used by overlayfs to prepare files to move them in a single atomic operation.
+Worth noting that the workdir is a "technical" directory used by overlayfs to prepare files to move them in a single atomic operation.
 
 [ref_workdir]:https://unix.stackexchange.com/questions/324515/linux-filesystem-overlay-what-is-workdir-used-for-overlayfs
 
 # Conclusion
 
-Docker itself is not magic, the mechanisms of the kernel is the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is networking namespace.  
+Docker itself is not magic, the mechanisms of the kernel are the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is the networking namespace.  
 
 [ref_00_prepare_sh]:https://github.com/jakub-m/no-docker/blob/playground/00-prepare.sh
 [ref_10_busybox_image]:https://github.com/jakub-m/no-docker/blob/playground/10-busybox-image.sh
