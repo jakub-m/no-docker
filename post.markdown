@@ -267,9 +267,9 @@ Worth noting that the workdir is a "technical" directory used by overlayfs to pr
 
 Docker itself is not magic, the mechanisms of the kernel are the magic, and you can easily explore those mechanisms yourself. The one important part I didn't cover here is the networking namespace.  
 
-[ref_00_prepare_sh]:https://github.com/jakub-m/no-docker/blob/playground/00-prepare.sh
-[ref_10_busybox_image]:https://github.com/jakub-m/no-docker/blob/playground/10-busybox-image.sh
-[ref_tool_go]:https://github.com/jakub-m/no-docker/blob/playground/tool.go
-[ref_20_unshare]:https://github.com/jakub-m/no-docker/blob/playground/20-unshare.sh
-[ref_40_overlayfs]:https://github.com/jakub-m/no-docker/blob/playground/40-overlayfs.sh
+[ref_00_prepare_sh]:https://github.com/jakub-m/no-docker/blob/main/00-prepare.sh
+[ref_10_busybox_image]:https://github.com/jakub-m/no-docker/blob/main/10-busybox-image.sh
+[ref_tool_go]:https://github.com/jakub-m/no-docker/blob/main/tool.go
+[ref_20_unshare]:https://github.com/jakub-m/no-docker/blob/main/20-unshare.sh
+[ref_40_overlayfs]:https://github.com/jakub-m/no-docker/blob/main/40-overlayfs.sh
 
